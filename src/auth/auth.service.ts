@@ -372,37 +372,6 @@ export class AuthService {
     return this.generateAuthResponse(user, userType);
   }
 
-  async createPrimaryDealerAdmin(createDto: CreatePrimaryDealerAdminDto) {
-    const { email, password, firstName, lastName } = createDto;
-
-    // Check if email already exists across all user types
-    await this.checkEmailExists(email);
-
-    // Hash password
-    const hashedPassword = await this.hashPassword(password);
-
-    // Set OTP and expiry (60 seconds from now)
-    const otpCode = 'abcd';
-    const expiresAt = new Date(Date.now() + 60 * 1000); // 60 seconds
-
-    // Create primary dealer-admin (no dealer yet)
-    const dealerAdmin = this.dealerAdminRepository.create({
-      email,
-      passwordHash: hashedPassword,
-      firstName,
-      lastName,
-      isPrimaryAdmin: true,
-      dealerId: null, // Will be set when they create their dealer
-      otpCode,
-      expiresAt,
-      isAccountVerified: false,
-    });
-
-    const savedDealerAdmin = await this.dealerAdminRepository.save(dealerAdmin);
-
-    return this.generateAuthResponse(savedDealerAdmin, 'dealer-admin');
-  }
-
   // Helper methods
   private async checkEmailExists(email: string): Promise<void> {
     const [dealerAdmin, dealerStaff, customer, sysAdmin] = await Promise.all([

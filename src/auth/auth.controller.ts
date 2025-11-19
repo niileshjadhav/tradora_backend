@@ -240,25 +240,4 @@ export class AuthController {
   async verifyOtp(@Body() verifyOtpDto: VerifyOtpDto): Promise<AuthResponseDto> {
     return this.authService.verifyOtp(verifyOtpDto);
   }
-
-  @Public()
-  @Post('signup/primary-dealer-admin')
-  @ApiOperation({ summary: 'Create a new primary dealer-admin for a new dealer entity' })
-  @ApiResponse({ 
-    status: 201, 
-    description: 'Primary dealer-admin successfully registered',
-    type: AuthResponseDto 
-  })
-  @ApiResponse({ 
-    status: 409, 
-    description: 'Email already exists' 
-  })
-  @ApiResponse({ 
-    status: 400, 
-    description: 'Bad request - validation errors' 
-  })
-  async createPrimaryDealerAdmin(@Body() createDto: CreatePrimaryDealerAdminDto): Promise<AuthResponseDto> {
-    return this.authService.createPrimaryDealerAdmin(createDto);
-  }
-
 }
