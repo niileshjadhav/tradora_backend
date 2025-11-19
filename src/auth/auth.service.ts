@@ -9,9 +9,8 @@ import {
   DealerAdminSignupDto,
   DealerStaffSignupDto,
   CustomerSignupDto,
-  CreateDealerAdminDto,
-  CreateDealerStaffDto,
-  CreatePrimaryDealerAdminDto,
+  InviteAdminStaffDto,
+  SetPasswordDto,
   VerifyOtpDto
 } from './dto';
 import { LoginDto } from './dto/login.dto';
@@ -193,124 +192,7 @@ export class AuthService {
     return adminWithDealer;
   }
 
-  async createDealerAdminByAdmin(createDto: CreateDealerAdminDto, creatingAdminId: number) {
-    const { email, password, firstName, lastName } = createDto;
 
-    // Verify the creating admin exists and has a dealer associated
-    const creatingAdmin = await this.dealerAdminRepository.findOne({
-      where: { id: creatingAdminId },
-      relations: ['dealer'],
-    });
-
-    if (!creatingAdmin) {
-      throw new BadRequestException('Creating admin not found');
-    }
-
-    if (!creatingAdmin.dealerId || !creatingAdmin.dealer) {
-      throw new BadRequestException('Creating admin must have a dealer associated to create other admins');
-    }
-
-    if (!creatingAdmin.isPrimaryAdmin) {
-      throw new BadRequestException('Only primary dealer-admin can create new dealer-admins');
-    }
-
-    // Ensure we don't create another primary admin for the same dealer
-    const existingPrimaryForDealer = await this.dealerAdminRepository.findOne({
-      where: { dealerId: creatingAdmin.dealerId, isPrimaryAdmin: true }
-    });
-    if (existingPrimaryForDealer && existingPrimaryForDealer.id !== creatingAdmin.id) {
-      throw new BadRequestException('This dealer already has a primary admin');
-    }
-
-    // Check if email already exists across all user types
-    await this.checkEmailExists(email);
-
-    // Hash password
-    const hashedPassword = await this.hashPassword(password);
-
-    // Set OTP and expiry (60 seconds from now)
-    const otpCode = 'abcd';
-    const expiresAt = new Date(Date.now() + 60 * 1000); // 60 seconds
-
-    // Create dealer-admin (not primary)
-    const dealerAdmin = this.dealerAdminRepository.create({
-      email,
-      passwordHash: hashedPassword,
-      firstName,
-      lastName,
-      isPrimaryAdmin: false,
-      dealerId: creatingAdmin.dealerId,
-      otpCode,
-      expiresAt,
-      isAccountVerified: false,
-    });
-
-    const savedDealerAdmin = await this.dealerAdminRepository.save(dealerAdmin);
-
-    // Load with dealer relation
-    const adminWithDealer = await this.dealerAdminRepository.findOne({
-      where: { id: savedDealerAdmin.id },
-      relations: ['dealer'],
-    });
-
-    return {
-      userType: adminWithDealer,
-      message: 'Dealer admin created successfully'
-    };
-  }
-
-  async createDealerStaffByAdmin(createDto: CreateDealerStaffDto, creatingAdminId: number) {
-    const { email, password, firstName, lastName } = createDto;
-
-    // Verify the creating admin exists and has a dealer associated
-    const creatingAdmin = await this.dealerAdminRepository.findOne({
-      where: { id: creatingAdminId },
-      relations: ['dealer'],
-    });
-
-    if (!creatingAdmin) {
-      throw new BadRequestException('Creating admin not found');
-    }
-
-    if (!creatingAdmin.dealerId || !creatingAdmin.dealer) {
-      throw new BadRequestException('Creating admin must have a dealer associated to create staff members');
-    }
-
-    // Check if email already exists across all user types
-    await this.checkEmailExists(email);
-
-    // Hash password
-    const hashedPassword = await this.hashPassword(password);
-
-    // Set OTP and expiry (60 seconds from now)
-    const otpCode = 'abcd';
-    const expiresAt = new Date(Date.now() + 60 * 1000); // 60 seconds
-
-    // Create dealer-staff
-    const dealerStaff = this.dealerStaffRepository.create({
-      email,
-      passwordHash: hashedPassword,
-      firstName,
-      lastName,
-      dealerId: creatingAdmin.dealerId,
-      otpCode,
-      expiresAt,
-      isAccountVerified: false,
-    });
-
-    const savedDealerStaff = await this.dealerStaffRepository.save(dealerStaff);
-
-    // Load with dealer relation
-    const staffWithDealer = await this.dealerStaffRepository.findOne({
-      where: { id: savedDealerStaff.id },
-      relations: ['dealer'],
-    });
-
-    return {
-      userType: staffWithDealer,
-      message: 'Dealer staff created successfully'
-    };
-  }
 
   async verifyOtp(verifyOtpDto: VerifyOtpDto) {
     const { email, otpCode, userType } = verifyOtpDto;
@@ -370,6 +252,150 @@ export class AuthService {
     }
 
     return this.generateAuthResponse(user, userType);
+  }
+
+  async createUserByEmail(createDto: InviteAdminStaffDto, creatingAdminId: number) {
+    const { email, userType } = createDto;
+
+    // Verify the creating admin exists and has a dealer associated
+    const creatingAdmin = await this.dealerAdminRepository.findOne({
+      where: { id: creatingAdminId },
+      relations: ['dealer'],
+    });
+
+    if (!creatingAdmin) {
+      throw new BadRequestException('Creating admin not found');
+    }
+
+    if (!creatingAdmin.dealerId || !creatingAdmin.dealer) {
+      throw new BadRequestException('Creating admin must have a dealer associated to create users');
+    }
+
+    if (!creatingAdmin.isPrimaryAdmin) {
+      throw new BadRequestException('Only primary dealer-admin can create new users');
+    }
+
+    // Check if email already exists across all user types
+    await this.checkEmailExists(email);
+
+    // Set OTP and expiry (60 seconds from now)
+    const otpCode = 'abcd';
+    const expiresAt = new Date(Date.now() + 60 * 1000); // 60 seconds
+
+    let savedUser: any;
+    let userEntity: any;
+
+    if (userType === 'dealer-admin') {
+      // Create dealer-admin without password (not primary)
+      userEntity = this.dealerAdminRepository.create({
+        email,
+        passwordHash: '', // Empty password hash - will be set later
+        firstName: '', // Empty firstName
+        lastName: '', // Empty lastName
+        isPrimaryAdmin: false,
+        dealerId: creatingAdmin.dealerId,
+        otpCode,
+        expiresAt,
+        isAccountVerified: false,
+      });
+
+      savedUser = await this.dealerAdminRepository.save(userEntity);
+
+      // Load with dealer relation
+      savedUser = await this.dealerAdminRepository.findOne({
+        where: { id: savedUser.id },
+        relations: ['dealer'],
+      });
+    } else {
+      // Create dealer-staff without password
+      userEntity = this.dealerStaffRepository.create({
+        email,
+        passwordHash: '', // Empty password hash - will be set later
+        firstName: email.split('@')[0], // Use email prefix as default firstName
+        lastName: '', // Empty lastName
+        dealerId: creatingAdmin.dealerId,
+        otpCode,
+        expiresAt,
+        isAccountVerified: false,
+      });
+
+      savedUser = await this.dealerStaffRepository.save(userEntity);
+
+      // Load with dealer relation
+      savedUser = await this.dealerStaffRepository.findOne({
+        where: { id: savedUser.id },
+        relations: ['dealer'],
+      });
+    }
+
+    return {
+      user: {
+        id: savedUser.id,
+        email: savedUser.email,
+        firstName: savedUser.firstName,
+        lastName: savedUser.lastName,
+        userType: userType,
+        dealer: savedUser.dealer ? {
+          id: savedUser.dealer.id,
+          dealershipName: savedUser.dealer.dealershipName,
+          businessEmail: savedUser.dealer.businessEmail,
+        } : null,
+      },
+      message: `${userType === 'dealer-admin' ? 'Dealer admin' : 'Dealer staff'} created successfully. OTP sent for password setup.`
+    };
+  }
+
+
+
+  async setPassword(setPasswordDto: SetPasswordDto) {
+    const { email, password, userType } = setPasswordDto;
+
+    let user: DealerAdmin | DealerStaff | null = null;
+
+    // Find user based on type
+    if (userType === 'dealer-admin') {
+      user = await this.dealerAdminRepository.findOne({
+        where: { email },
+      });
+    } else if (userType === 'dealer-staff') {
+      user = await this.dealerStaffRepository.findOne({
+        where: { email },
+      });
+    }
+
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+
+    if (user.isAccountVerified) {
+      throw new BadRequestException('Account is already verified. Use login to access your account.');
+    }
+
+    // Hash the new password
+    const hashedPassword = await this.hashPassword(password);
+
+    // Set new OTP and expiry (60 seconds from now)
+    const otpCode = 'abcd';
+    const expiresAt = new Date(Date.now() + 60 * 1000); // 60 seconds
+
+    // Update user with new password and OTP
+    if (userType === 'dealer-admin') {
+      await this.dealerAdminRepository.update(user.id, {
+        passwordHash: hashedPassword,
+        otpCode,
+        expiresAt,
+      });
+    } else {
+      await this.dealerStaffRepository.update(user.id, {
+        passwordHash: hashedPassword,
+        otpCode,
+        expiresAt,
+      });
+    }
+
+    return {
+      message: 'Password updated successfully. OTP sent for verification.'
+    };
   }
 
   // Helper methods

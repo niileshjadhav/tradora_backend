@@ -6,9 +6,8 @@ import {
   DealerStaffSignupDto,
   CustomerSignupDto,
   AuthResponseDto,
-  CreateDealerAdminDto,
-  CreateDealerStaffDto,
-  CreatePrimaryDealerAdminDto,
+  InviteAdminStaffDto,
+  SetPasswordDto,
   VerifyOtpDto,
 } from './dto';
 import { LoginDto } from './dto/login.dto';
@@ -159,12 +158,12 @@ export class AuthController {
   }
 
   @UseGuards(JwtAuthGuard)
-  @Post('create-dealer-admin')
+  @Post('invite-user')
   @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Create new dealer admin (primary dealer-admin only)' })
+  @ApiOperation({ summary: 'Create new dealer admin or staff by email only (dealer-admin only)' })
   @ApiResponse({ 
     status: 201, 
-    description: 'Dealer admin created successfully'
+    description: 'User created successfully with OTP sent'
   })
   @ApiResponse({ 
     status: 409, 
@@ -178,47 +177,18 @@ export class AuthController {
     status: 401, 
     description: 'Unauthorized - invalid or missing token' 
   })
-  async createDealerAdmin(
-    @Body() createDto: CreateDealerAdminDto,
+  async createUser(
+    @Body() createDto: InviteAdminStaffDto,
     @CurrentUser() user: AuthenticatedUser
   ) {
     if (user.userType !== 'dealer-admin') {
-      throw new BadRequestException('Only dealer-admin can create new dealer admins');
+      throw new BadRequestException('Only dealer-admin can create new users');
     }
     
-    return this.authService.createDealerAdminByAdmin(createDto, user.id);
+    return this.authService.createUserByEmail(createDto, user.id);
   }
 
-  @UseGuards(JwtAuthGuard)
-  @Post('create-dealer-staff')
-  @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Create new dealer staff (dealer-admin only)' })
-  @ApiResponse({ 
-    status: 201, 
-    description: 'Dealer staff created successfully'
-  })
-  @ApiResponse({ 
-    status: 409, 
-    description: 'Email already exists' 
-  })
-  @ApiResponse({ 
-    status: 400, 
-    description: 'Bad request - validation errors or insufficient permissions' 
-  })
-  @ApiResponse({ 
-    status: 401, 
-    description: 'Unauthorized - invalid or missing token' 
-  })
-  async createDealerStaff(
-    @Body() createDto: CreateDealerStaffDto,
-    @CurrentUser() user: AuthenticatedUser
-  ) {
-    if (user.userType !== 'dealer-admin') {
-      throw new BadRequestException('Only dealer-admin can create dealer staff');
-    }
-    
-    return this.authService.createDealerStaffByAdmin(createDto, user.id);
-  }
+
 
   @Public()
   @Post('verify-otp')
@@ -239,5 +209,25 @@ export class AuthController {
   })
   async verifyOtp(@Body() verifyOtpDto: VerifyOtpDto): Promise<AuthResponseDto> {
     return this.authService.verifyOtp(verifyOtpDto);
+  }
+
+  @Public()
+  @Post('set-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Set password for dealer-admin or dealer-staff account using email (triggers OTP)' })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'OTP sent successfully for password setup'
+  })
+  @ApiResponse({ 
+    status: 400, 
+    description: 'Bad request - user not found or account already verified' 
+  })
+  @ApiResponse({ 
+    status: 401, 
+    description: 'Unauthorized - invalid user type' 
+  })
+  async setPassword(@Body() setPasswordDto: SetPasswordDto) {
+    return this.authService.setPassword(setPasswordDto);
   }
 }

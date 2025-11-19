@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, ParseIntPipe, ForbiddenException, NotFoundException, BadRequestException } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { DealersService } from './dealers.service';
 import { CreateDealerDto, UpdateDealerDto } from './dto/create-dealer.dto';
@@ -21,7 +21,7 @@ export class DealersController {
   createMyDealer(@Body() createDealerDto: CreateDealerDto, @CurrentUser() user: AuthenticatedUser) {
     // Only dealer-admin can create their own dealer
     if (user.userType !== 'dealer-admin') {
-      throw new Error('Only dealer-admin can create their own dealer');
+      throw new ForbiddenException('Only dealer-admin can create their own dealer');
     }
     return this.dealersService.createForDealerAdmin(createDealerDto, user.id);
   }
@@ -35,7 +35,7 @@ export class DealersController {
   findAll(@CurrentUser() user: AuthenticatedUser) {
     // Only sysadmin can see all dealers
     if (user.userType !== 'sysadmin') {
-      throw new Error('Forbidden - only sysadmin can list all dealers');
+      throw new ForbiddenException('Only sysadmin can list all dealers');
     }
     return this.dealersService.findAll();
   }
@@ -48,12 +48,16 @@ export class DealersController {
   getMyDealer(@CurrentUser() user: AuthenticatedUser) {
     // Only dealer-admin and dealer-staff can access their dealer data
     if (!['dealer-admin', 'dealer-staff'].includes(user.userType)) {
-      throw new Error('Forbidden - dealer-admin or dealer-staff access required');
+      throw new ForbiddenException('Dealer-admin or dealer-staff access required');
     }
     
     // Check if user is associated with a dealer
     if (!('dealerId' in user) || !user.dealerId) {
-      throw new Error('User is not associated with any dealer');
+      return {
+        message: 'No dealer associated with this user',
+        hasDealer: false,
+        dealer: null
+      };
     }
     
     return this.dealersService.findOne(user.dealerId);
@@ -68,7 +72,7 @@ export class DealersController {
     if (user.userType === 'sysadmin' || ('dealerId' in user && user.dealerId === id)) {
       return this.dealersService.findOne(id);
     }
-    throw new Error('Forbidden - you can only view your own dealer');
+    throw new ForbiddenException('You can only view your own dealer');
   }
 
 
@@ -86,7 +90,7 @@ export class DealersController {
   ) {
     // Only dealer-admin can update their own dealer
     if (user.userType !== 'dealer-admin' || !('dealerId' in user) || user.dealerId !== id) {
-      throw new Error('Forbidden - only dealer-admin can update their own dealer');
+      throw new ForbiddenException('Only dealer-admin can update their own dealer');
     }
     return this.dealersService.update(id, updateDealerDto);
   }
