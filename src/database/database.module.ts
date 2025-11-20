@@ -12,7 +12,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
         host: configService.get('DATABASE_HOST', 'localhost'),
         port: configService.get('DATABASE_PORT', 5432),
         username: configService.get('DATABASE_USERNAME', 'postgres'),
-        password: configService.get('DATABASE_PASSWORD', 'password'),
+        password: configService.get('DATABASE_PASSWORD'),
         database: configService.get('DATABASE_NAME', 'tradora_poc'),
         entities: [__dirname + '/../**/*.entity{.ts,.js}'],
         migrations: [__dirname + '/migrations/*{.ts,.js}'],

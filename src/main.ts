@@ -6,9 +6,7 @@ import { ConfigService } from '@nestjs/config';
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, {
-    cors: false
-  });
+  const app = await NestFactory.create(AppModule);
   const configService = app.get(ConfigService);
 
   // Register global exception filter
@@ -31,9 +29,19 @@ async function bootstrap() {
   app.enableCors({
     origin: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS', 'HEAD'],
-    allowedHeaders: '*',
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'Accept',
+      'Origin',
+      'X-Requested-With',
+      'Access-Control-Request-Method',
+      'Access-Control-Request-Headers',
+    ],
     exposedHeaders: [
       'Content-Type',
+      'Authorization',
+      'X-Total-Count',
     ],
     credentials: true,
     preflightContinue: false,

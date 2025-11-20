@@ -160,7 +160,7 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @Post('invite-user')
   @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Create new dealer admin or staff by email only (dealer-admin only)' })
+  @ApiOperation({ summary: 'Create new dealer admin or staff with email, firstname and lastname (dealer-admin only)' })
   @ApiResponse({ 
     status: 201, 
     description: 'User created successfully with OTP sent'

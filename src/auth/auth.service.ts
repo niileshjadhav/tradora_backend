@@ -255,7 +255,7 @@ export class AuthService {
   }
 
   async createUserByEmail(createDto: InviteAdminStaffDto, creatingAdminId: number) {
-    const { email, userType } = createDto;
+    const { email, firstName, lastName, userType } = createDto;
 
     // Verify the creating admin exists and has a dealer associated
     const creatingAdmin = await this.dealerAdminRepository.findOne({
@@ -290,8 +290,8 @@ export class AuthService {
       userEntity = this.dealerAdminRepository.create({
         email,
         passwordHash: '', // Empty password hash - will be set later
-        firstName: '', // Empty firstName
-        lastName: '', // Empty lastName
+        firstName,
+        lastName,
         isPrimaryAdmin: false,
         dealerId: creatingAdmin.dealerId,
         otpCode,
@@ -311,8 +311,8 @@ export class AuthService {
       userEntity = this.dealerStaffRepository.create({
         email,
         passwordHash: '', // Empty password hash - will be set later
-        firstName: email.split('@')[0], // Use email prefix as default firstName
-        lastName: '', // Empty lastName
+        firstName,
+        lastName,
         dealerId: creatingAdmin.dealerId,
         otpCode,
         expiresAt,

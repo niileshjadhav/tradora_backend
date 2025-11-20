@@ -6,6 +6,14 @@ export class InviteAdminStaffDto {
   @IsEmail()
   email: string;
 
+  @ApiProperty({ example: 'John' })
+  @IsString()
+  firstName: string;
+
+  @ApiProperty({ example: 'Doe' })
+  @IsString()
+  lastName: string;
+
   @ApiProperty({ example: 'dealer-admin', enum: ['dealer-admin', 'dealer-staff'] })
   @IsString()
   @IsIn(['dealer-admin', 'dealer-staff'])
